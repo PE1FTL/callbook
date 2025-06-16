@@ -1,0 +1,13 @@
+.callbook-table th, .callbook-table td {
+    vertical-align: middle;
+}
+.callbook-table {
+    font-size: 0.9rem;
+}
+.callbook-table tbody tr {
+    cursor: pointer;
+}
+.callbook-pagination .btn, .tablenav .btn {
+    min-width: 40px;
+    text-align: center;
+}
