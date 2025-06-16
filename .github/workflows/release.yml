@@ -1,0 +1,52 @@
+name: Create Release ZIP
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to fetch all tags
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "1.7") # Default to 1.7 if no tags exist
+          current_version=${latest_tag#v} # Remove 'v' prefix if present
+          IFS='.' read -r major minor <<< "$current_version"
+          new_minor=$((minor + 1))
+          new_tag="v$major.$new_minor"
+          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
+          echo "zip_name=callbook-crud-$major.$new_minor.zip" >> $GITHUB_OUTPUT
+
+      - name: Create ZIP file
+        run: |
+          zip -r ${{ steps.get_tag.outputs.zip_name }} . -x ".git/*" ".github/*"
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_tag.outputs.new_tag }}
+          release_name: Release ${{ steps.get_tag.outputs.new_tag }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.get_tag.outputs.zip_name }}
+          asset_name: ${{ steps.get_tag.outputs.zip_name }}
+          asset_content_type: application/zip
