@@ -2,7 +2,7 @@
 /*
 Plugin Name: Callbook CRUD
 Description: Ein WordPress-Plugin für ein Callbook mit CRUD-Funktionen, seitenweiser Darstellung mit Buttons, modalem Eingabefenster, SQL-Import für Admins und öffentlicher Anzeige mit modaler Detailansicht, gestylt mit Bootstrap. Unterstützt Updates von GitHub-Releases.
-Version: 1.7
+Version: 1.8
 Author: Grok
 GitHub Plugin URI: https://github.com/PE1FTL/callbook-crud
 */
@@ -52,11 +52,17 @@ function callbook_enqueue_assets() {
     // Bootstrap CSS
     wp_enqueue_style('bootstrap', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css', [], '5.3.3');
     // Plugin CSS
-    wp_enqueue_style('callbook-styles', plugin_dir_url(__FILE__) . 'assets/callbook-styles.css', ['bootstrap'], '1.7');
+    wp_enqueue_style('callbook-styles', plugin_dir_url(__FILE__) . 'assets/callbook-styles.css', ['bootstrap'], '1.8');
     // Bootstrap JS
     wp_enqueue_script('bootstrap', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js', [], '5.3.3', true);
     // Plugin JS
-    wp_enqueue_script('callbook-scripts', plugin_dir_url(__FILE__) . 'assets/callbook-scripts.js', ['bootstrap'], '1.7', true);
+    wp_enqueue_script('callbook-scripts', plugin_dir_url(__FILE__) . 'assets/callbook-scripts.js', ['bootstrap'], '1.8', true);
+
+    // Inline-Skript für Debugging
+    wp_localize_script('callbook-scripts', 'callbookDebug', [
+        'modalId' => 'callbookDetailModal',
+        'debugEnabled' => WP_DEBUG,
+    ]);
 }
 add_action('admin_enqueue_scripts', 'callbook_enqueue_assets');
 add_action('wp_enqueue_scripts', 'callbook_enqueue_assets');
@@ -188,7 +194,20 @@ function callbook_public_shortcode() {
                 </thead>
                 <tbody>
                     <?php foreach ($results as $row): ?>
-                    <tr onclick="openDetailModal('<?php echo esc_js($row->id); ?>', '<?php echo esc_js($row->prcall); ?>', '<?php echo esc_js($row->name); ?>', '<?php echo esc_js($row->qth); ?>', '<?php echo esc_js($row->locator); ?>', '<?php echo esc_js($row->mybbs); ?>', '<?php echo esc_js($row->route); ?>', '<?php echo esc_js($row->email); ?>', '<?php echo esc_js($row->website); ?>', '<?php echo esc_js($row->prmail); ?>', '<?php echo esc_js($row->bundesland); ?>', '<?php echo esc_js($row->land); ?>', '<?php echo esc_js($row->bemerkung); ?>', '<?php echo esc_js($row->regdatum); ?>')">
+                    <tr class="callbook-row" data-id="<?php echo esc_attr($row->id); ?>" 
+                        data-prcall="<?php echo esc_attr($row->prcall); ?>" 
+                        data-name="<?php echo esc_attr($row->name); ?>" 
+                        data-qth="<?php echo esc_attr($row->qth); ?>" 
+                        data-locator="<?php echo esc_attr($row->locator); ?>" 
+                        data-mybbs="<?php echo esc_attr($row->mybbs); ?>" 
+                        data-route="<?php echo esc_attr($row->route); ?>" 
+                        data-email="<?php echo esc_attr($row->email); ?>" 
+                        data-website="<?php echo esc_attr($row->website); ?>" 
+                        data-prmail="<?php echo esc_attr($row->prmail); ?>" 
+                        data-bundesland="<?php echo esc_attr($row->bundesland); ?>" 
+                        data-land="<?php echo esc_attr($row->land); ?>" 
+                        data-bemerkung="<?php echo esc_attr($row->bemerkung); ?>" 
+                        data-regdatum="<?php echo esc_attr($row->regdatum); ?>">
                         <td><?php echo esc_html($row->id); ?></td>
                         <td><?php echo esc_html($row->prcall); ?></td>
                         <td><?php echo esc_html($row->name); ?></td>
@@ -347,7 +366,20 @@ function callbook_admin_page() {
             </thead>
             <tbody>
                 <?php foreach ($results as $row): ?>
-                <tr onclick="openDetailModal('<?php echo esc_js($row->id); ?>', '<?php echo esc_js($row->prcall); ?>', '<?php echo esc_js($row->name); ?>', '<?php echo esc_js($row->qth); ?>', '<?php echo esc_js($row->locator); ?>', '<?php echo esc_js($row->mybbs); ?>', '<?php echo esc_js($row->route); ?>', '<?php echo esc_js($row->email); ?>', '<?php echo esc_js($row->website); ?>', '<?php echo esc_js($row->prmail); ?>', '<?php echo esc_js($row->bundesland); ?>', '<?php echo esc_js($row->land); ?>', '<?php echo esc_js($row->bemerkung); ?>', '<?php echo esc_js($row->regdatum); ?>')">
+                <tr class="callbook-row" data-id="<?php echo esc_attr($row->id); ?>" 
+                    data-prcall="<?php echo esc_attr($row->prcall); ?>" 
+                    data-name="<?php echo esc_attr($row->name); ?>" 
+                    data-qth="<?php echo esc_attr($row->qth); ?>" 
+                    data-locator="<?php echo esc_attr($row->locator); ?>" 
+                    data-mybbs="<?php echo esc_attr($row->mybbs); ?>" 
+                    data-route="<?php echo esc_attr($row->route); ?>" 
+                    data-email="<?php echo esc_attr($row->email); ?>" 
+                    data-website="<?php echo esc_attr($row->website); ?>" 
+                    data-prmail="<?php echo esc_attr($row->prmail); ?>" 
+                    data-bundesland="<?php echo esc_attr($row->bundesland); ?>" 
+                    data-land="<?php echo esc_attr($row->land); ?>" 
+                    data-bemerkung="<?php echo esc_attr($row->bemerkung); ?>" 
+                    data-regdatum="<?php echo esc_attr($row->regdatum); ?>">
                     <td><?php echo esc_html($row->id); ?></td>
                     <td><?php echo esc_html($row->prcall); ?></td>
                     <td><?php echo esc_html($row->name); ?></td>
@@ -363,7 +395,7 @@ function callbook_admin_page() {
                     <td><?php echo esc_html($row->bemerkung); ?></td>
                     <td><?php echo esc_html($row->regdatum); ?></td>
                     <td>
-                        <a href="#" class="btn btn-sm btn-primary" onclick="event.stopPropagation(); openEditModal('<?php echo $row->id; ?>', '<?php echo esc_js($row->prcall); ?>', '<?php echo esc_js($row->name); ?>', '<?php echo esc_js($row->qth); ?>', '<?php echo esc_js($row->locator); ?>', '<?php echo esc_js($row->mybbs); ?>', '<?php echo esc_js($row->route); ?>', '<?php echo esc_js($row->email); ?>', '<?php echo esc_js($row->website); ?>', '<?php echo esc_js($row->prmail); ?>', '<?php echo esc_js($row->bundesland); ?>', '<?php echo esc_js($row->land); ?>', '<?php echo esc_js($row->bemerkung); ?>')" data-bs-toggle="modal" data-bs-target="#callbookEditModal">Editieren</a>
+                        <a href="#" class="btn btn-sm btn-primary" onclick="event.stopPropagation(); openEditModal('<?php echo esc_js($row->id); ?>', '<?php echo esc_js($row->prcall); ?>', '<?php echo esc_js($row->name); ?>', '<?php echo esc_js($row->qth); ?>', '<?php echo esc_js($row->locator); ?>', '<?php echo esc_js($row->mybbs); ?>', '<?php echo esc_js($row->route); ?>', '<?php echo esc_js($row->email); ?>', '<?php echo esc_js($row->website); ?>', '<?php echo esc_js($row->prmail); ?>', '<?php echo esc_js($row->bundesland); ?>', '<?php echo esc_js($row->land); ?>', '<?php echo esc_js($row->bemerkung); ?>')" data-bs-toggle="modal" data-bs-target="#callbookEditModal">Editieren</a>
                         <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=callbook&action=delete&id=' . $row->id), 'callbook_delete_' . $row->id); ?>" class="btn btn-sm btn-danger" onclick="event.stopPropagation(); return confirm('Sicher, dass Sie diesen Eintrag löschen möchten?')">Löschen</a>
                     </td>
                 </tr>
