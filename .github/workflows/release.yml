@@ -1,4 +1,4 @@
-name: Create Release ZIP
+name: Create Release ZIP Every 10 Commits
 
 on:
   push:
@@ -8,17 +8,33 @@ on:
 jobs:
   create-release:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required to fetch all tags
+          fetch-depth: 0 # Required to fetch all history for commit counting
 
-      - name: Get latest tag
+      - name: Count commits since last tag
+        id: commit_count
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          if [ "$latest_tag" = "none" ]; then
+            commit_count=$(git rev-list --count HEAD)
+          else
+            commit_count=$(git rev-list --count $latest_tag..HEAD)
+          fi
+          echo "commit_count=$commit_count" >> $GITHUB_OUTPUT
+          echo "Commit count since last tag: $commit_count"
+
+      - name: Proceed if commit count is 10 or more
+        if: steps.commit_count.outputs.commit_count >= 10
+        run: echo "Proceeding with release creation"
+
+      - name: Get latest tag and generate new tag
+        if: steps.commit_count.outputs.commit_count >= 10
         id: get_tag
         run: |
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "1.7") # Default to 1.7 if no tags exist
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.7")
           current_version=${latest_tag#v} # Remove 'v' prefix if present
           IFS='.' read -r major minor <<< "$current_version"
           new_minor=$((minor + 1))
@@ -26,11 +42,31 @@ jobs:
           echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
           echo "zip_name=callbook-crud-$major.$new_minor.zip" >> $GITHUB_OUTPUT
 
+      - name: Generate release notes from commit messages
+        if: steps.commit_count.outputs.commit_count >= 10
+        id: release_notes
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          if [ "$latest_tag" = "none" ]; then
+            commit_messages=$(git log --pretty=%s)
+          else
+            commit_messages=$(git log $latest_tag..HEAD --pretty=%s)
+          fi
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "## Release Notes" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "$commit_messages" | while IFS= read -r line; do
+            echo "- $line" >> $GITHUB_OUTPUT
+          done
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create ZIP file
+        if: steps.commit_count.outputs.commit_count >= 10
         run: |
           zip -r ${{ steps.get_tag.outputs.zip_name }} . -x ".git/*" ".github/*"
 
       - name: Create Release
+        if: steps.commit_count.outputs.commit_count >= 10
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -38,10 +74,12 @@ jobs:
         with:
           tag_name: ${{ steps.get_tag.outputs.new_tag }}
           release_name: Release ${{ steps.get_tag.outputs.new_tag }}
+          body: ${{ steps.release_notes.outputs.notes }}
           draft: false
           prerelease: false
 
       - name: Upload Release Asset
+        if: steps.commit_count.outputs.commit_count >= 10
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
