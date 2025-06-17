@@ -28,20 +28,4 @@ jQuery(document).ready(function($) {
             }
         });
     });
-
-    // Prüfen auf Updates alle 24 Stunden
-    setInterval(function() {
-        $.ajax({
-            url: ajax_object.ajaxurl,
-            method: 'POST',
-            data: {
-                action: 'check_github_update'
-            },
-            success: function(response) {
-                if (response === 'update_available') {
-                    alert('Ein neues Update für das Callbook-Plugin ist verfügbar!');
-                }
-            }
-        });
-    }, 86400000);
 });

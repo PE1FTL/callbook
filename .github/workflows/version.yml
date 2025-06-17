@@ -1,4 +1,4 @@
-name: Increment Version
+name: Increment Version and Create Update File
 
 on:
   push:
@@ -29,42 +29,60 @@ jobs:
           VERSION=${{ env.CURRENT_VERSION }}
           MAJOR=$(echo $VERSION | cut -d. -f1)
           MINOR=$(echo $VERSION | cut -d. -f2)
-          PATCH=$(echo $VERSION | cut -d. -f3 | cut -d- -f1)
-          BUILD=$(echo $VERSION | cut -d- -f2)
-          if [ -z "$BUILD" ]; then
-            BUILD=0000
-          fi
-          NEW_BUILD=$((10#$BUILD + 1))
-          NEW_BUILD=$(printf "%04d" $NEW_BUILD)
-          
-          # Wöchentliche Erhöhung um 0.0.1
-          DAY_OF_WEEK=$(date +%u)
-          if [ "$DAY_OF_WEEK" = "1" ]; then
-            PATCH=$((PATCH + 1))
-            NEW_BUILD=0000
-          fi
-          
-          NEW_VERSION="$MAJOR.$MINOR.$PATCH-$NEW_BUILD"
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Update version in plugin file
         run: |
           sed -i "s/Version: .*/Version: ${{ env.NEW_VERSION }}/" callbook.php
+          sed -i "s/private \$version = .*/private \$version = '${{ env.NEW_VERSION }}';/" callbook.php
 
-      - name: Commit and push version update
+      - name: Create update.json
+        run: |
+          cat > update.json << EOF
+          {
+            "version": "${{ env.NEW_VERSION }}",
+            "package": "https://github.com/pe1ftl/callbook/releases/download/v${{ env.NEW_VERSION }}/callbook.zip",
+            "changelog": "Version ${{ env.NEW_VERSION }} released on $(date -u +%Y-%m-%d)",
+            "requires": "5.0",
+            "tested": "6.5"
+          }
+          EOF
+
+      - name: Create ZIP archive
+        run: |
+          mkdir -p callbook
+          cp callbook.php callbook/
+          cp -r assets callbook/
+          zip -r callbook.zip callbook
+
+      - name: Commit and push changes
         run: |
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
-          git add callbook.php
-          git commit -m "Increment version to ${{ env.NEW_VERSION }}"
+          git add callbook.php update.json
+          git commit -m "Increment version to ${{ env.NEW_VERSION }} and update JSON"
           git push
 
-      - name: Create Release
+      - name: rozmowy
+        id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.NEW_VERSION }}
-          release_name: ${{ env.NEW_VERSION }}
+          tag_name: v${{ env.NEW_VERSION }}
+          release_name: Release v${{ env.NEW_VERSION }}
           draft: false
           prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./callbook.zip
+          asset_name: callbook.zip
+          asset_content_type: application/zip
