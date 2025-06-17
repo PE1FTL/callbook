@@ -27,6 +27,7 @@ class CallbookPlugin {
         add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_scripts']);
         add_action('wp_ajax_callbook_get_row', [$this, 'get_row']);
+        add_action('wp_ajax_nopriv_callbook_get_row', [$this, 'get_row']); // Für nicht eingeloggte Benutzer
         add_shortcode('callbook', [$this, 'display_callbook']);
         // Update-Logik hinzufügen
         add_filter('pre_set_site_transient_update_plugins', [$this, 'check_for_update']);
@@ -243,6 +244,7 @@ class CallbookPlugin {
         // Eigene Styles und Scripts aus assets
         wp_enqueue_style('callbook', plugin_dir_url(__FILE__) . 'assets/css/callbook.css', [], $this->version);
         wp_enqueue_script('callbook', plugin_dir_url(__FILE__) . 'assets/js/callbook.js', ['jquery'], $this->version, true);
+        wp_localize_script('callbook', 'ajax_object', ['ajaxurl' => admin_url('admin-ajax.php')]);
     }
 
     public function enqueue_admin_scripts() {
@@ -272,7 +274,7 @@ class CallbookPlugin {
                 </thead>
                 <tbody>
                     <?php foreach ($results as $row) : ?>
-                        <tr>
+                        <tr class="view-row" data-id="<?php echo esc_attr($row->id); ?>">
                             <td><?php echo esc_html($row->id); ?></td>
                             <td><?php echo esc_html($row->prcall); ?></td>
                             <td><?php echo esc_html($row->name); ?></td>
@@ -283,6 +285,84 @@ class CallbookPlugin {
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            <!-- Anzeigemodal -->
+            <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="viewModalLabel">Datensatz anzeigen</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">PR Call</label>
+                                        <p id="view_prcall" class="form-control-plaintext"></p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Name</label>
+                                        <p id="view_name" class="form-control-plaintext"></p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">QTH</label>
+                                        <p id="view_qth" class="form-control-plaintext"></p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Locator</label>
+                                        <p id="view_locator" class="form-control-plaintext"></p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">MyBBS</label>
+                                        <p id="view_mybbs" class="form-control-plaintext"></p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Route</label>
+                                        <p id="view_route" class="form-control-plaintext"></p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Email</label>
+                                        <p id="view_email" class="form-control-plaintext"></p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Website</label>
+                                        <p id="view_website" class="form-control-plaintext"></p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">PR Mail</label>
+                                        <p id="view_prmail" class="form-control-plaintext"></p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Bundesland</label>
+                                        <p id="view_bundesland" class="form-control-plaintext"></p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Land</label>
+                                        <p id="view_land" class="form-control-plaintext"></p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Registrierungsdatum</label>
+                                        <p id="view_regdate" class="form-control-plaintext"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Bemerkung</label>
+                                <p id="view_bemerkung" class="form-control-plaintext"></p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Letzte Aktualisierung</label>
+                                <p id="view_lastupdate" class="form-control-plaintext"></p>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         <?php
         return ob_get_clean();
