@@ -1,4 +1,4 @@
-name: Create Release ZIP Every 10 Commits
+name: Auto Increment Release
 
 on:
   push:
@@ -6,85 +6,51 @@ on:
       - main
 
 jobs:
-  create-release:
+  release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Required to fetch all history for commit counting
+        uses: actions/checkout@v2
 
-      - name: Count commits since last tag
-        id: commit_count
+      - name: Get current version
+        id: get_version
         run: |
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
-          if [ "$latest_tag" = "none" ]; then
-            commit_count=$(git rev-list --count HEAD)
-          else
-            commit_count=$(git rev-list --count $latest_tag..HEAD)
-          fi
-          echo "commit_count=$commit_count" >> $GITHUB_OUTPUT
-          echo "Commit count since last tag: $commit_count"
+          VERSION=$(cat version.txt 2>/dev/null || echo 0)
+          echo "Current version: $VERSION"
+          echo "::set-output name=version::$VERSION"
 
-      - name: Proceed if commit count is 10 or more
-        if: steps.commit_count.outputs.commit_count >= 10
-        run: echo "Proceeding with release creation"
-
-      - name: Get latest tag and generate new tag
-        if: steps.commit_count.outputs.commit_count >= 10
-        id: get_tag
+      - name: Increment version
+        id: increment_version
         run: |
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.7")
-          current_version=${latest_tag#v} # Remove 'v' prefix if present
-          IFS='.' read -r major minor <<< "$current_version"
-          new_minor=$((minor + 1))
-          new_tag="v$major.$new_minor"
-          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
-          echo "zip_name=callbook-crud-$major.$new_minor.zip" >> $GITHUB_OUTPUT
+          VERSION=${{ steps.get_version.outputs.version }}
+          NEW_VERSION=$((VERSION + 1))
+          echo "New version: $NEW_VERSION"
+          echo "::set-output name=new_version::$NEW_VERSION"
+          echo $NEW_VERSION > version.txt
 
-      - name: Generate release notes from commit messages
-        if: steps.commit_count.outputs.commit_count >= 10
-        id: release_notes
+      - name: Get commit message
+        id: get_commit_message
         run: |
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
-          if [ "$latest_tag" = "none" ]; then
-            commit_messages=$(git log --pretty=%s)
-          else
-            commit_messages=$(git log $latest_tag..HEAD --pretty=%s)
-          fi
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "## Release Notes" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "$commit_messages" | while IFS= read -r line; do
-            echo "- $line" >> $GITHUB_OUTPUT
-          done
-          echo "EOF" >> $GITHUB_OUTPUT
+          MESSAGE=$(git log -1 --pretty=%B)
+          echo "Commit message: $MESSAGE"
+          echo "::set-output name=message::$MESSAGE"
 
-      - name: Create ZIP file
-        if: steps.commit_count.outputs.commit_count >= 10
-        run: |
-          zip -r ${{ steps.get_tag.outputs.zip_name }} . -x ".git/*" ".github/*"
-
-      - name: Create Release
-        if: steps.commit_count.outputs.commit_count >= 10
-        id: create_release
+      - name: Create release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.get_tag.outputs.new_tag }}
-          release_name: Release ${{ steps.get_tag.outputs.new_tag }}
-          body: ${{ steps.release_notes.outputs.notes }}
+          tag_name: v${{ steps.increment_version.outputs.new_version }}
+          release_name: Release v${{ steps.increment_version.outputs.new_version }}
+          body: |
+            ${{ steps.get_commit_message.outputs.message }}
           draft: false
           prerelease: false
 
-      - name: Upload Release Asset
-        if: steps.commit_count.outputs.commit_count >= 10
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.get_tag.outputs.zip_name }}
-          asset_name: ${{ steps.get_tag.outputs.zip_name }}
-          asset_content_type: application/zip
+      - name: Commit version update
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add version.txt
+          git commit -m "Increment version to ${{ steps.increment_version.outputs.new_version }}"
+          git push
