@@ -125,20 +125,18 @@ class CallbookPlugin {
                         <th>Name</th>
                         <th>QTH</th>
                         <th>Locator</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php
                     $results = $wpdb->get_results("SELECT * FROM $this->table_name");
                     foreach ($results as $row) {
-                        echo '<tr>';
+                        echo '<tr class="edit-row" data-id="' . esc_attr($row->id) . '">';
                         echo '<td>' . esc_html($row->id) . '</td>';
                         echo '<td>' . esc_html($row->prcall) . '</td>';
                         echo '<td>' . esc_html($row->name) . '</td>';
                         echo '<td>' . esc_html($row->qth) . '</td>';
                         echo '<td>' . esc_html($row->locator) . '</td>';
-                        echo '<td><button class="btn btn-sm btn-primary edit-row" data-id="' . esc_attr($row->id) . '">Bearbeiten</button></td>';
                         echo '</tr>';
                     }
                     ?>
@@ -146,7 +144,7 @@ class CallbookPlugin {
             </table>
             <!-- Bearbeitungsmodal -->
             <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <form method="post">
                             <?php wp_nonce_field('callbook_edit_nonce'); ?>
@@ -156,57 +154,63 @@ class CallbookPlugin {
                             </div>
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="edit_id">
-                                <div class="mb-3">
-                                    <label for="prcall" class="form-label">PR Call</label>
-                                    <input type="text" class="form-control" name="prcall" id="prcall">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="name" class="form-label">Name</label>
-                                    <input type="text" class="form-control" name="name" id="name">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="qth" class="form-label">QTH</label>
-                                    <input type="text" class="form-control" name="qth" id="qth">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="locator" class="form-label">Locator</label>
-                                    <input type="text" class="form-control" name="locator" id="locator">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="mybbs" class="form-label">MyBBS</label>
-                                    <input type="text" class="form-control" name="mybbs" id="mybbs">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="route" class="form-label">Route</label>
-                                    <input type="text" class="form-control" name="route" id="route">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="email" class="form-label">Email</label>
-                                    <input type="email" class="form-control" name="email" id="email">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="website" class="form-label">Website</label>
-                                    <input type="url" class="form-control" name="website" id="website">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="prmail" class="form-label">PR Mail</label>
-                                    <input type="text" class="form-control" name="prmail" id="prmail">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="bundesland" class="form-label">Bundesland</label>
-                                    <input type="text" class="form-control" name="bundesland" id="bundesland">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="land" class="form-label">Land</label>
-                                    <input type="text" class="form-control" name="land" id="land">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="prcall" class="form-label">PR Call</label>
+                                            <input type="text" class="form-control" name="prcall" id="prcall" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="name" class="form-label">Name</label>
+                                            <input type="text" class="form-control" name="name" id="name">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="qth" class="form-label">QTH</label>
+                                            <input type="text" class="form-control" name="qth" id="qth">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="locator" class="form-label">Locator</label>
+                                            <input type="text" class="form-control" name="locator" id="locator">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="mybbs" class="form-label">MyBBS</label>
+                                            <input type="text" class="form-control" name="mybbs" id="mybbs">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="route" class="form-label">Route</label>
+                                            <input type="text" class="form-control" name="route" id="route">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="email" class="form-label">Email</label>
+                                            <input type="email" class="form-control" name="email" id="email">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="website" class="form-label">Website</label>
+                                            <input type="url" class="form-control" name="website" id="website">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="prmail" class="form-label">PR Mail</label>
+                                            <input type="text" class="form-control" name="prmail" id="prmail">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="bundesland" class="form-label">Bundesland</label>
+                                            <input type="text" class="form-control" name="bundesland" id="bundesland">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="land" class="form-label">Land</label>
+                                            <input type="text" class="form-control" name="land" id="land">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="regdate" class="form-label">Registrierungsdatum</label>
+                                            <input type="text" class="form-control" name="regdate" id="regdate">
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="bemerkung" class="form-label">Bemerkung</label>
-                                    <textarea class="form-control" name="bemerkung" id="bemerkung"></textarea>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="regdate" class="form-label">Registrierungsdatum</label>
-                                    <input type="text" class="form-control" name="regdate" id="regdate">
+                                    <textarea class="form-control" name="bemerkung" id="bemerkung" rows="4"></textarea>
                                 </div>
                             </div>
                             <div class="modal-footer">
