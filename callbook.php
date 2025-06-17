@@ -2,7 +2,7 @@
 /*
 Plugin Name: Callbook
 Description: Ein WordPress-Plugin zur Verwaltung einer Callbook-Datenbank mit automatischen Updates von GitHub und Bootstrap 5 Integration.
-Version: 0.0.1
+Version: ..1
 Author: xAI
 License: GPL2
 */
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 // Plugin-Klasse
 class CallbookPlugin {
     private $table_name;
-    private $version = '0.0.1';
+    private $version = '..1';
     private $update_url = 'https://raw.githubusercontent.com/pe1ftl/callbook/main/update.json';
 
     public function __construct() {
