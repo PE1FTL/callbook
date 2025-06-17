@@ -17,6 +17,7 @@ class CallbookPlugin {
     private $table_name;
     private $version = '0.0.5';
     private $update_url = 'https://raw.githubusercontent.com/pe1ftl/callbook/main/update.json';
+    private $items_per_page = 10;
 
     public function __construct() {
         global $wpdb;
@@ -27,9 +28,10 @@ class CallbookPlugin {
         add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_scripts']);
         add_action('wp_ajax_callbook_get_row', [$this, 'get_row']);
-        add_action('wp_ajax_nopriv_callbook_get_row', [$this, 'get_row']); // Für nicht eingeloggte Benutzer
+        add_action('wp_ajax_nopriv_callbook_get_row', [$this, 'get_row']);
+        add_action('wp_ajax_callbook_get_page', [$this, 'get_page']);
+        add_action('wp_ajax_nopriv_callbook_get_page', [$this, 'get_page']);
         add_shortcode('callbook', [$this, 'display_callbook']);
-        // Update-Logik hinzufügen
         add_filter('pre_set_site_transient_update_plugins', [$this, 'check_for_update']);
         add_filter('plugins_api', [$this, 'plugin_info'], 10, 3);
     }
@@ -107,6 +109,13 @@ class CallbookPlugin {
             $message = '<div class="alert alert-success">Datensatz erfolgreich aktualisiert.</div>';
         }
 
+        // Pagination
+        $current_page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
+        $offset = ($current_page - 1) * $this->items_per_page;
+        $total_items = $wpdb->get_var("SELECT COUNT(*) FROM $this->table_name");
+        $total_pages = ceil($total_items / $this->items_per_page);
+        $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $this->table_name LIMIT %d OFFSET %d", $this->items_per_page, $offset));
+
         ?>
         <div class="wrap">
             <h1>Callbook Verwaltung</h1>
@@ -118,31 +127,48 @@ class CallbookPlugin {
                 <input type="submit" name="callbook_import" class="btn btn-primary" value="SQL-Datei importieren">
             </form>
             <h2>Datensätze</h2>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>PR Call</th>
-                        <th>Name</th>
-                        <th>QTH</th>
-                        <th>Locator</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $results = $wpdb->get_results("SELECT * FROM $this->table_name");
-                    foreach ($results as $row) {
-                        echo '<tr class="edit-row" data-id="' . esc_attr($row->id) . '">';
-                        echo '<td>' . esc_html($row->id) . '</td>';
-                        echo '<td>' . esc_html($row->prcall) . '</td>';
-                        echo '<td>' . esc_html($row->name) . '</td>';
-                        echo '<td>' . esc_html($row->qth) . '</td>';
-                        echo '<td>' . esc_html($row->locator) . '</td>';
-                        echo '</tr>';
-                    }
-                    ?>
-                </tbody>
-            </table>
+            <div id="admin-callbook-table">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>PR Call</th>
+                            <th>Name</th>
+                            <th>QTH</th>
+                            <th>Locator</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($results as $row) : ?>
+                            <tr class="edit-row" data-id="<?php echo esc_attr($row->id); ?>">
+                                <td><?php echo esc_html($row->id); ?></td>
+                                <td><?php echo esc_html($row->prcall); ?></td>
+                                <td><?php echo esc_html($row->name); ?></td>
+                                <td><?php echo esc_html($row->qth); ?></td>
+                                <td><?php echo esc_html($row->locator); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                <!-- Pagination -->
+                <?php if ($total_pages > 1) : ?>
+                    <nav aria-label="Callbook Pagination">
+                        <ul class="pagination">
+                            <li class="page-item <?php echo $current_page <= 1 ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?page=callbook&paged=<?php echo $current_page - 1; ?>" data-page="<?php echo $current_page - 1; ?>">Vorherige</a>
+                            </li>
+                            <?php for ($i = 1; $i <= $total_pages; $i++) : ?>
+                                <li class="page-item <?php echo $i === $current_page ? 'active' : ''; ?>">
+                                    <a class="page-link" href="?page=callbook&paged=<?php echo $i; ?>" data-page="<?php echo $i; ?>"><?php echo $i; ?></a>
+                                </li>
+                            <?php endfor; ?>
+                            <li class="page-item <?php echo $current_page >= $total_pages ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?page=callbook&paged=<?php echo $current_page + 1; ?>" data-page="<?php echo $current_page + 1; ?>">Nächste</a>
+                            </li>
+                        </ul>
+                    </nav>
+                <?php endif; ?>
+            </div>
             <!-- Bearbeitungsmodal -->
             <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
@@ -235,13 +261,69 @@ class CallbookPlugin {
         wp_die();
     }
 
+    // AJAX-Handler für paginierte Tabelle
+    public function get_page() {
+        global $wpdb;
+        $page = isset($_POST['page']) ? max(1, intval($_POST['page'])) : 1;
+        $is_admin = isset($_POST['is_admin']) && $_POST['is_admin'] === 'true';
+        $offset = ($page - 1) * $this->items_per_page;
+        $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $this->table_name LIMIT %d OFFSET %d", $this->items_per_page, $offset));
+        $total_items = $wpdb->get_var("SELECT COUNT(*) FROM $this->table_name");
+        $total_pages = ceil($total_items / $this->items_per_page);
+
+        ob_start();
+        ?>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>PR Call</th>
+                    <th>Name</th>
+                    <th>QTH</th>
+                    <th>Locator</th>
+                    <?php if ($is_admin) : ?>
+                        <th></th>
+                    <?php endif; ?>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($results as $row) : ?>
+                    <tr class="<?php echo $is_admin ? 'edit-row' : 'view-row'; ?>" data-id="<?php echo esc_attr($row->id); ?>">
+                        <td><?php echo esc_html($row->id); ?></td>
+                        <td><?php echo esc_html($row->prcall); ?></td>
+                        <td><?php echo esc_html($row->name); ?></td>
+                        <td><?php echo esc_html($row->qth); ?></td>
+                        <td><?php echo esc_html($row->locator); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php if ($total_pages > 1) : ?>
+            <nav aria-label="Callbook Pagination">
+                <ul class="pagination">
+                    <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                        <a class="page-link" href="#" data-page="<?php echo $page - 1; ?>">Vorherige</a>
+                    </li>
+                    <?php for ($i = 1; $i <= $total_pages; $i++) : ?>
+                        <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
+                            <a class="page-link" href="#" data-page="<?php echo $i; ?>"><?php echo $i; ?></a>
+                        </li>
+                    <?php endfor; ?>
+                    <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
+                        <a class="page-link" href="#" data-page="<?php echo $page + 1; ?>">Nächste</a>
+                    </li>
+                </ul>
+            </nav>
+        <?php endif; ?>
+        <?php
+        echo ob_get_clean();
+        wp_die();
+    }
+
     // Scripts und Styles einbinden
     public function enqueue_scripts() {
-        // Bootstrap 5
         wp_enqueue_style('bootstrap', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css', [], '5.3.0');
         wp_enqueue_script('bootstrap', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js', ['jquery'], '5.3.0', true);
-        
-        // Eigene Styles und Scripts aus assets
         wp_enqueue_style('callbook', plugin_dir_url(__FILE__) . 'assets/css/callbook.css', [], $this->version);
         wp_enqueue_script('callbook', plugin_dir_url(__FILE__) . 'assets/js/callbook.js', ['jquery'], $this->version, true);
         wp_localize_script('callbook', 'ajax_object', ['ajaxurl' => admin_url('admin-ajax.php')]);
@@ -256,35 +338,60 @@ class CallbookPlugin {
     // Shortcode für Frontend-Anzeige
     public function display_callbook() {
         global $wpdb;
-        $results = $wpdb->get_results("SELECT * FROM $this->table_name");
+        $current_page = isset($_GET['callbook_page']) ? max(1, intval($_GET['callbook_page'])) : 1;
+        $offset = ($current_page - 1) * $this->items_per_page;
+        $total_items = $wpdb->get_var("SELECT COUNT(*) FROM $this->table_name");
+        $total_pages = ceil($total_items / $this->items_per_page);
+        $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $this->table_name LIMIT %d OFFSET %d", $this->items_per_page, $offset));
+
         ob_start();
         ?>
         <div class="container">
             <h2>Callbook</h2>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>PR Call</th>
-                        <th>Name</th>
-                        <th>QTH</th>
-                        <th>Locator</th>
-                        <th>Email</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($results as $row) : ?>
-                        <tr class="view-row" data-id="<?php echo esc_attr($row->id); ?>">
-                            <td><?php echo esc_html($row->id); ?></td>
-                            <td><?php echo esc_html($row->prcall); ?></td>
-                            <td><?php echo esc_html($row->name); ?></td>
-                            <td><?php echo esc_html($row->qth); ?></td>
-                            <td><?php echo esc_html($row->locator); ?></td>
-                            <td><?php echo esc_html($row->email); ?></td>
+            <div id="frontend-callbook-table">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>PR Call</th>
+                            <th>Name</th>
+                            <th>QTH</th>
+                            <th>Locator</th>
+                            <th>Email</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($results as $row) : ?>
+                            <tr class="view-row" data-id="<?php echo esc_attr($row->id); ?>">
+                                <td><?php echo esc_html($row->id); ?></td>
+                                <td><?php echo esc_html($row->prcall); ?></td>
+                                <td><?php echo esc_html($row->name); ?></td>
+                                <td><?php echo esc_html($row->qth); ?></td>
+                                <td><?php echo esc_html($row->locator); ?></td>
+                                <td><?php echo esc_html($row->email); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                <!-- Pagination -->
+                <?php if ($total_pages > 1) : ?>
+                    <nav aria-label="Callbook Pagination">
+                        <ul class="pagination">
+                            <li class="page-item <?php echo $current_page <= 1 ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?callbook_page=<?php echo $current_page - 1; ?>" data-page="<?php echo $current_page - 1; ?>">Vorherige</a>
+                            </li>
+                            <?php for ($i = 1; $i <= $total_pages; $i++) : ?>
+                                <li class="page-item <?php echo $i === $current_page ? 'active' : ''; ?>">
+                                    <a class="page-link" href="?callbook_page=<?php echo $i; ?>" data-page="<?php echo $i; ?>"><?php echo $i; ?></a>
+                                </li>
+                            <?php endfor; ?>
+                            <li class="page-item <?php echo $current_page >= $total_pages ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?callbook_page=<?php echo $current_page + 1; ?>" data-page="<?php echo $current_page + 1; ?>">Nächste</a>
+                            </li>
+                        </ul>
+                    </nav>
+                <?php endif; ?>
+            </div>
             <!-- Anzeigemodal -->
             <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-lg">

@@ -17,3 +17,22 @@
 .callbook-container th {
     background-color: #f8f9fa;
 }
+
+/* Pagination Styling */
+.pagination {
+    margin-top: 20px;
+    justify-content: center;
+}
+
+.pagination .page-link {
+    color: #007bff;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.pagination .page-item.disabled .page-link {
+    color: #6c757d;
+}
