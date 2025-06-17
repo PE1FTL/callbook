@@ -1,0 +1,70 @@
+name: Increment Version
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  increment-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+
+      - name: Read current version
+        id: get_version
+        run: |
+          VERSION=$(grep "Version:" callbook.php | awk '{print $3}')
+          echo "CURRENT_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Calculate new version
+        id: calculate_version
+        run: |
+          VERSION=${{ env.CURRENT_VERSION }}
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3 | cut -d- -f1)
+          BUILD=$(echo $VERSION | cut -d- -f2)
+          if [ -z "$BUILD" ]; then
+            BUILD=0000
+          fi
+          NEW_BUILD=$((10#$BUILD + 1))
+          NEW_BUILD=$(printf "%04d" $NEW_BUILD)
+          
+          # Wöchentliche Erhöhung um 0.0.1
+          DAY_OF_WEEK=$(date +%u)
+          if [ "$DAY_OF_WEEK" = "1" ]; then
+            PATCH=$((PATCH + 1))
+            NEW_BUILD=0000
+          fi
+          
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH-$NEW_BUILD"
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+      - name: Update version in plugin file
+        run: |
+          sed -i "s/Version: .*/Version: ${{ env.NEW_VERSION }}/" callbook.php
+
+      - name: Commit and push version update
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add callbook.php
+          git commit -m "Increment version to ${{ env.NEW_VERSION }}"
+          git push
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.NEW_VERSION }}
+          release_name: Release ${{ env.NEW_VERSION }}
+          draft: false
+          prerelease: false
