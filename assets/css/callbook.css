@@ -1,0 +1,19 @@
+/* Callbook Plugin CSS */
+.callbook-container {
+    margin-top: 20px;
+}
+
+.callbook-container table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.callbook-container th,
+.callbook-container td {
+    padding: 10px;
+    text-align: left;
+}
+
+.callbook-container th {
+    background-color: #f8f9fa;
+}
