@@ -20,7 +20,7 @@ jobs:
       - name: Read current version
         id: get_version
         run: |
-          VERSION=$(grep "Version:" callbook.php | awk '{print $3}')
+          VERSION=$(grep "Version:" callbook.php | awk '{print $2}')
           echo "CURRENT_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Calculate new version
