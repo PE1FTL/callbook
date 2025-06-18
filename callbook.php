@@ -116,6 +116,10 @@ class CallbookPlugin {
         $total_pages = ceil($total_items / $this->items_per_page);
         $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $this->table_name LIMIT %d OFFSET %d", $this->items_per_page, $offset));
 
+        // Bereich für Pagination-Links (±2 Seiten)
+        $start_page = max(1, $current_page - 2);
+        $end_page = min($total_pages, $current_page + 2);
+
         ?>
         <div class="wrap">
             <h1>Callbook Verwaltung</h1>
@@ -155,15 +159,21 @@ class CallbookPlugin {
                     <nav aria-label="Callbook Pagination">
                         <ul class="pagination">
                             <li class="page-item <?php echo $current_page <= 1 ? 'disabled' : ''; ?>">
-                                <a class="page-link" href="?page=callbook&paged=<?php echo $current_page - 1; ?>" data-page="<?php echo $current_page - 1; ?>">Vorherige</a>
+                                <a class="page-link" href="?page=callbook&paged=1" data-page="1"><i class="bi bi-skip-start-fill"></i></a>
                             </li>
-                            <?php for ($i = 1; $i <= $total_pages; $i++) : ?>
+                            <li class="page-item <?php echo $current_page <= 1 ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?page=callbook&paged=<?php echo $current_page - 1; ?>" data-page="<?php echo $current_page - 1; ?>"><i class="bi bi-chevron-left"></i></a>
+                            </li>
+                            <?php for ($i = $start_page; $i <= $end_page; $i++) : ?>
                                 <li class="page-item <?php echo $i === $current_page ? 'active' : ''; ?>">
                                     <a class="page-link" href="?page=callbook&paged=<?php echo $i; ?>" data-page="<?php echo $i; ?>"><?php echo $i; ?></a>
                                 </li>
                             <?php endfor; ?>
                             <li class="page-item <?php echo $current_page >= $total_pages ? 'disabled' : ''; ?>">
-                                <a class="page-link" href="?page=callbook&paged=<?php echo $current_page + 1; ?>" data-page="<?php echo $current_page + 1; ?>">Nächste</a>
+                                <a class="page-link" href="?page=callbook&paged=<?php echo $current_page + 1; ?>" data-page="<?php echo $current_page + 1; ?>"><i class="bi bi-chevron-right"></i></a>
+                            </li>
+                            <li class="page-item <?php echo $current_page >= $total_pages ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?page=callbook&paged=<?php echo $total_pages; ?>" data-page="<?php echo $total_pages; ?>"><i class="bi bi-skip-end-fill"></i></a>
                             </li>
                         </ul>
                     </nav>
@@ -271,6 +281,10 @@ class CallbookPlugin {
         $total_items = $wpdb->get_var("SELECT COUNT(*) FROM $this->table_name");
         $total_pages = ceil($total_items / $this->items_per_page);
 
+        // Bereich für Pagination-Links (±2 Seiten)
+        $start_page = max(1, $page - 2);
+        $end_page = min($total_pages, $page + 2);
+
         ob_start();
         ?>
         <table class="table table-striped">
@@ -283,6 +297,8 @@ class CallbookPlugin {
                     <th>Locator</th>
                     <?php if ($is_admin) : ?>
                         <th></th>
+                    <?php else : ?>
+                        <th>Email</th>
                     <?php endif; ?>
                 </tr>
             </thead>
@@ -294,6 +310,9 @@ class CallbookPlugin {
                         <td><?php echo esc_html($row->name); ?></td>
                         <td><?php echo esc_html($row->qth); ?></td>
                         <td><?php echo esc_html($row->locator); ?></td>
+                        <?php if (!$is_admin) : ?>
+                            <td><?php echo esc_html($row->email); ?></td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -302,15 +321,21 @@ class CallbookPlugin {
             <nav aria-label="Callbook Pagination">
                 <ul class="pagination">
                     <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                        <a class="page-link" href="#" data-page="<?php echo $page - 1; ?>">Vorherige</a>
+                        <a class="page-link" href="#" data-page="1"><i class="bi bi-skip-start-fill"></i></a>
                     </li>
-                    <?php for ($i = 1; $i <= $total_pages; $i++) : ?>
+                    <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                        <a class="page-link" href="#" data-page="<?php echo $page - 1; ?>"><i class="bi bi-chevron-left"></i></a>
+                    </li>
+                    <?php for ($i = $start_page; $i <= $end_page; $i++) : ?>
                         <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
                             <a class="page-link" href="#" data-page="<?php echo $i; ?>"><?php echo $i; ?></a>
                         </li>
                     <?php endfor; ?>
                     <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
-                        <a class="page-link" href="#" data-page="<?php echo $page + 1; ?>">Nächste</a>
+                        <a class="page-link" href="#" data-page="<?php echo $page + 1; ?>"><i class="bi bi-chevron-right"></i></a>
+                    </li>
+                    <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
+                        <a class="page-link" href="#" data-page="<?php echo $total_pages; ?>"><i class="bi bi-skip-end-fill"></i></a>
                     </li>
                 </ul>
             </nav>
@@ -323,6 +348,7 @@ class CallbookPlugin {
     // Scripts und Styles einbinden
     public function enqueue_scripts() {
         wp_enqueue_style('bootstrap', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css', [], '5.3.0');
+        wp_enqueue_style('bootstrap-icons', 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css', [], '1.10.5');
         wp_enqueue_script('bootstrap', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js', ['jquery'], '5.3.0', true);
         wp_enqueue_style('callbook', plugin_dir_url(__FILE__) . 'assets/css/callbook.css', [], $this->version);
         wp_enqueue_script('callbook', plugin_dir_url(__FILE__) . 'assets/js/callbook.js', ['jquery'], $this->version, true);
@@ -343,6 +369,10 @@ class CallbookPlugin {
         $total_items = $wpdb->get_var("SELECT COUNT(*) FROM $this->table_name");
         $total_pages = ceil($total_items / $this->items_per_page);
         $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $this->table_name LIMIT %d OFFSET %d", $this->items_per_page, $offset));
+
+        // Bereich für Pagination-Links (±2 Seiten)
+        $start_page = max(1, $current_page - 2);
+        $end_page = min($total_pages, $current_page + 2);
 
         ob_start();
         ?>
@@ -378,15 +408,21 @@ class CallbookPlugin {
                     <nav aria-label="Callbook Pagination">
                         <ul class="pagination">
                             <li class="page-item <?php echo $current_page <= 1 ? 'disabled' : ''; ?>">
-                                <a class="page-link" href="?callbook_page=<?php echo $current_page - 1; ?>" data-page="<?php echo $current_page - 1; ?>">Vorherige</a>
+                                <a class="page-link" href="?callbook_page=1" data-page="1"><i class="bi bi-skip-start-fill"></i></a>
                             </li>
-                            <?php for ($i = 1; $i <= $total_pages; $i++) : ?>
+                            <li class="page-item <?php echo $current_page <= 1 ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?callbook_page=<?php echo $current_page - 1; ?>" data-page="<?php echo $current_page - 1; ?>"><i class="bi bi-chevron-left"></i></a>
+                            </li>
+                            <?php for ($i = $start_page; $i <= $end_page; $i++) : ?>
                                 <li class="page-item <?php echo $i === $current_page ? 'active' : ''; ?>">
                                     <a class="page-link" href="?callbook_page=<?php echo $i; ?>" data-page="<?php echo $i; ?>"><?php echo $i; ?></a>
                                 </li>
                             <?php endfor; ?>
                             <li class="page-item <?php echo $current_page >= $total_pages ? 'disabled' : ''; ?>">
-                                <a class="page-link" href="?callbook_page=<?php echo $current_page + 1; ?>" data-page="<?php echo $current_page + 1; ?>">Nächste</a>
+                                <a class="page-link" href="?callbook_page=<?php echo $current_page + 1; ?>" data-page="<?php echo $current_page + 1; ?>"><i class="bi bi-chevron-right"></i></a>
+                            </li>
+                            <li class="page-item <?php echo $current_page >= $total_pages ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?callbook_page=<?php echo $total_pages; ?>" data-page="<?php echo $total_pages; ?>"><i class="bi bi-skip-end-fill"></i></a>
                             </li>
                         </ul>
                     </nav>
