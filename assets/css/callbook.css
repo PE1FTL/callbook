@@ -47,3 +47,16 @@
 .pagination .page-link i.bi {
     font-size: 1.2rem;
 }
+.callbook-submit-form {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.callbook-submit-form .form-label {
+    font-weight: 500;
+}
+
+.callbook-submit-form .btn-primary {
+    margin-top: 10px;
+}

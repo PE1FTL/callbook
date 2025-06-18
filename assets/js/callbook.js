@@ -25,7 +25,6 @@ jQuery(document).ready(function($) {
                 $('#view_regdate').text(data.regdate || '');
                 $('#view_bemerkung').text(data.bemerkung || '');
                 $('#view_lastupdate').text(data.lastupdate || '');
-                // activ-Feld wird im Frontend-Modal nicht angezeigt
                 $('#viewModal').modal('show');
             }
         });
@@ -45,6 +44,42 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 $('#frontend-callbook-table').html(response);
+            }
+        });
+    });
+
+    // Submit-Handler für Eingabeformular
+    $(document).on('submit', '#callbook-submit-form', function(e) {
+        e.preventDefault();
+        var $form = $(this);
+        var $messageDiv = $('#form-message');
+
+        $.ajax({
+            url: ajax_object.ajaxurl,
+            type: 'POST',
+            data: $form.serialize() + '&action=callbook_submit_form',
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    $messageDiv.html('<div class="alert alert-success">' + response.data.message + '</div>');
+                    $form.trigger('reset'); // Formular zurücksetzen
+                } else {
+                    $messageDiv.html('<div class="alert alert-danger">' + response.data.message + '</div>');
+                }
+                // Nachricht nach 5 Sekunden ausblenden
+                setTimeout(function() {
+                    $messageDiv.find('.alert').fadeOut('slow', function() {
+                        $(this).remove();
+                    });
+                }, 5000);
+            },
+            error: function() {
+                $messageDiv.html('<div class="alert alert-danger">Ein unerwarteter Fehler ist aufgetreten.</div>');
+                setTimeout(function() {
+                    $messageDiv.find('.alert').fadeOut('slow', function() {
+                        $(this).remove();
+                    });
+                }, 5000);
             }
         });
     });

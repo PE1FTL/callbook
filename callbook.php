@@ -31,7 +31,10 @@ class CallbookPlugin {
         add_action('wp_ajax_nopriv_callbook_get_row', [$this, 'get_row']);
         add_action('wp_ajax_callbook_get_page', [$this, 'get_page']);
         add_action('wp_ajax_nopriv_callbook_get_page', [$this, 'get_page']);
+        add_action('wp_ajax_callbook_submit_form', [$this, 'submit_form']);
+        add_action('wp_ajax_nopriv_callbook_submit_form', [$this, 'submit_form']);
         add_shortcode('callbook', [$this, 'display_callbook']);
+        add_shortcode('callbook_submit', [$this, 'display_submit_form']);
         add_filter('pre_set_site_transient_update_plugins', [$this, 'check_for_update']);
         add_filter('plugins_api', [$this, 'plugin_info'], 10, 3);
     }
@@ -343,6 +346,132 @@ class CallbookPlugin {
         <?php
         echo ob_get_clean();
         wp_die();
+    }
+
+    // Shortcode für Eingabeformular
+    public function display_submit_form() {
+        ob_start();
+        ?>
+        <div class="container callbook-submit-form">
+            <h2>Neuen Datensatz hinzufügen</h2>
+            <div id="form-message"></div>
+            <form id="callbook-submit-form" method="post">
+                <?php wp_nonce_field('callbook_submit_nonce', 'callbook_submit_nonce'); ?>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="submit_prcall" class="form-label">PR Call <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="submit_prcall" name="prcall" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="submit_name" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="submit_name" name="name">
+                        </div>
+                        <div class="mb-3">
+                            <label for="submit_qth" class="form-label">QTH</label>
+                            <input type="text" class="form-control" id="submit_qth" name="qth">
+                        </div>
+                        <div class="mb-3">
+                            <label for="submit_locator" class="form-label">Locator</label>
+                            <input type="text" class="form-control" id="submit_locator" name="locator">
+                        </div>
+                        <div class="mb-3">
+                            <label for="submit_mybbs" class="form-label">MyBBS</label>
+                            <input type="text" class="form-control" id="submit_mybbs" name="mybbs">
+                        </div>
+                        <div class="mb-3">
+                            <label for="submit_route" class="form-label">Route</label>
+                            <input type="text" class="form-control" id="submit_route" name="route">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="submit_email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="submit_email" name="email">
+                        </div>
+                        <div class="mb-3">
+                            <label for="submit_website" class="form-label">Website</label>
+                            <input type="url" class="form-control" id="submit_website" name="website">
+                        </div>
+                        <div class="mb-3">
+                            <label for="submit_prmail" class="form-label">PR Mail</label>
+                            <input type="text" class="form-control" id="submit_prmail" name="prmail">
+                        </div>
+                        <div class="mb-3">
+                            <label for="submit_bundesland" class="form-label">Bundesland</label>
+                            <input type="text" class="form-control" id="submit_bundesland" name="bundesland">
+                        </div>
+                        <div class="mb-3">
+                            <label for="submit_land" class="form-label">Land</label>
+                            <input type="text" class="form-control" id="submit_land" name="land">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="submit_bemerkung" class="form-label">Bemerkung</label>
+                    <textarea class="form-control" id="submit_bemerkung" name="bemerkung" rows="4"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Absenden</button>
+            </form>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    // AJAX-Handler für Formular-Submit
+    public function submit_form() {
+        global $wpdb;
+
+        // Nonce-Überprüfung
+        if (!check_ajax_referer('callbook_submit_nonce', 'callbook_submit_nonce', false)) {
+            wp_send_json_error(['message' => 'Sicherheitsüberprüfung fehlgeschlagen.']);
+        }
+
+        // Pflichtfeld prcall prüfen
+        if (empty($_POST['prcall'])) {
+            wp_send_json_error(['message' => 'PR Call ist ein Pflichtfeld.']);
+        }
+
+        // Daten bereinigen
+        $data = [
+            'prcall' => sanitize_text_field($_POST['prcall']),
+            'name' => sanitize_text_field($_POST['name']),
+            'qth' => sanitize_text_field($_POST['qth']),
+            'locator' => sanitize_text_field($_POST['locator']),
+            'mybbs' => sanitize_text_field($_POST['mybbs']),
+            'route' => sanitize_text_field($_POST['route']),
+            'email' => sanitize_email($_POST['email']),
+            'website' => esc_url_raw($_POST['website']),
+            'prmail' => sanitize_text_field($_POST['prmail']),
+            'bundesland' => sanitize_text_field($_POST['bundesland']),
+            'land' => sanitize_text_field($_POST['land']),
+            'bemerkung' => sanitize_textarea_field($_POST['bemerkung']),
+            'regdate' => current_time('Y-m-d H:i:s'),
+            'lastupdate' => current_time('mysql'),
+            'activ' => 0
+        ];
+
+        // Datensatz einfügen
+        $result = $wpdb->insert($this->table_name, $data);
+        if ($result === false) {
+            wp_send_json_error(['message' => 'Fehler beim Speichern des Datensatzes.']);
+        }
+
+        // E-Mail an Admin senden
+        $admin_email = get_option('admin_email');
+        $subject = 'Neuer Callbook-Eintrag eingereicht';
+        $message = "Ein neuer Datensatz wurde über das Callbook-Formular eingereicht:\n\n";
+        foreach ($data as $key => $value) {
+            if ($key !== 'activ' && $key !== 'regdate' && $key !== 'lastupdate') {
+                $label = ucfirst($key);
+                $message .= "$label: $value\n";
+            }
+        }
+        $message .= "\nBitte überprüfen Sie den Eintrag im Admin-Bereich.";
+        $headers = ['Content-Type: text/plain; charset=UTF-8'];
+        wp_mail($admin_email, $subject, $message, $headers);
+
+        wp_send_json_success(['message' => 'Datensatz erfolgreich eingereicht. Der Administrator wurde benachrichtigt.']);
     }
 
     // Scripts und Styles einbinden
