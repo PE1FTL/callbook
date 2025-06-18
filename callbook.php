@@ -80,19 +80,6 @@ class CallbookPlugin {
         global $wpdb;
         $message = '';
 
-        // Datenbank-Import
-        if (isset($_POST['callbook_import']) && check_admin_referer('callbook_import_nonce')) {
-            if (isset($_FILES['sql_file']) && $_FILES['sql_file']['error'] == 0) {
-                $file = $_FILES['sql_file']['tmp_name'];
-                $sql = file_get_contents($file);
-                $wpdb->query('SET foreign_key_checks = 0');
-                $wpdb->query($sql);
-                $message = '<div class="alert alert-success">Datenbank erfolgreich importiert.</div>';
-            } else {
-                $message = '<div class="alert alert-danger">Fehler beim Hochladen der Datei.</div>';
-            }
-        }
-
         // Datensatz bearbeiten
         if (isset($_POST['callbook_edit']) && check_admin_referer('callbook_edit_nonce')) {
             $id = intval($_POST['id']);
@@ -132,12 +119,6 @@ class CallbookPlugin {
         <div class="wrap">
             <h1>Callbook Verwaltung</h1>
             <?php echo $message; ?>
-            <h2>Datenbank Import</h2>
-            <form method="post" enctype="multipart/form-data">
-                <?php wp_nonce_field('callbook_import_nonce'); ?>
-                <input type="file" name="sql_file" accept=".sql">
-                <input type="submit" name="callbook_import" class="btn btn-primary" value="SQL-Datei importieren">
-            </form>
             <h2>Datensätze</h2>
             <div id="admin-callbook-table">
                 <table class="table table-striped">
@@ -292,7 +273,7 @@ class CallbookPlugin {
         $is_admin = isset($_POST['is_admin']) && $_POST['is_admin'] === 'true';
         $offset = ($page - 1) * $this->items_per_page;
 
-        // Filter für Benutzeransicht: nur aktiv = 1
+        // Filter für Benutzeransicht: nur activ = 1
         $where_clause = $is_admin ? '' : 'WHERE activ = 1';
         $total_items = $wpdb->get_var("SELECT COUNT(*) FROM $this->table_name $where_clause");
         $total_pages = ceil($total_items / $this->items_per_page);
