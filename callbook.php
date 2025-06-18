@@ -56,10 +56,17 @@ class CallbookPlugin {
             bemerkung varchar(112) DEFAULT NULL,
             regdate varchar(16) DEFAULT NULL,
             lastupdate datetime DEFAULT NULL,
+            activ TINYINT(1) NOT NULL DEFAULT 1,
             PRIMARY KEY (id)
         ) $charset_collate;";
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+
+        // Bestehende Tabellenstruktur prüfen und activ-Feld hinzufügen
+        if ($wpdb->get_var("SHOW COLUMNS FROM $this->table_name LIKE 'activ'") != 'activ') {
+            $wpdb->query("ALTER TABLE $this->table_name ADD activ TINYINT(1) NOT NULL DEFAULT 1");
+        }
+
         update_option('callbook_version', $this->version);
     }
 
@@ -103,6 +110,7 @@ class CallbookPlugin {
                 'land' => sanitize_text_field($_POST['land']),
                 'bemerkung' => sanitize_text_field($_POST['bemerkung']),
                 'regdate' => sanitize_text_field($_POST['regdate']),
+                'activ' => isset($_POST['activ']) ? 1 : 0,
                 'lastupdate' => current_time('mysql')
             ];
             $wpdb->update($this->table_name, $data, ['id' => $id]);
@@ -140,6 +148,7 @@ class CallbookPlugin {
                             <th>Name</th>
                             <th>QTH</th>
                             <th>Locator</th>
+                            <th>Aktiv</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -150,6 +159,7 @@ class CallbookPlugin {
                                 <td><?php echo esc_html($row->name); ?></td>
                                 <td><?php echo esc_html($row->qth); ?></td>
                                 <td><?php echo esc_html($row->locator); ?></td>
+                                <td><?php echo $row->activ ? 'Ja' : 'Nein'; ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -243,6 +253,10 @@ class CallbookPlugin {
                                             <label for="regdate" class="form-label">Registrierungsdatum</label>
                                             <input type="text" class="form-control" name="regdate" id="regdate">
                                         </div>
+                                        <div class="mb-3">
+                                            <label for="activ" class="form-label">Aktiv</label>
+                                            <input type="checkbox" class="form-check-input" name="activ" id="activ">
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="mb-3">
@@ -277,9 +291,12 @@ class CallbookPlugin {
         $page = isset($_POST['page']) ? max(1, intval($_POST['page'])) : 1;
         $is_admin = isset($_POST['is_admin']) && $_POST['is_admin'] === 'true';
         $offset = ($page - 1) * $this->items_per_page;
-        $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $this->table_name LIMIT %d OFFSET %d", $this->items_per_page, $offset));
-        $total_items = $wpdb->get_var("SELECT COUNT(*) FROM $this->table_name");
+
+        // Filter für Benutzeransicht: nur aktiv = 1
+        $where_clause = $is_admin ? '' : 'WHERE activ = 1';
+        $total_items = $wpdb->get_var("SELECT COUNT(*) FROM $this->table_name $where_clause");
         $total_pages = ceil($total_items / $this->items_per_page);
+        $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $this->table_name $where_clause LIMIT %d OFFSET %d", $this->items_per_page, $offset));
 
         // Bereich für Pagination-Links (±2 Seiten)
         $start_page = max(1, $page - 2);
@@ -296,7 +313,7 @@ class CallbookPlugin {
                     <th>QTH</th>
                     <th>Locator</th>
                     <?php if ($is_admin) : ?>
-                        <th></th>
+                        <th>Aktiv</th>
                     <?php else : ?>
                         <th>Email</th>
                     <?php endif; ?>
@@ -310,7 +327,9 @@ class CallbookPlugin {
                         <td><?php echo esc_html($row->name); ?></td>
                         <td><?php echo esc_html($row->qth); ?></td>
                         <td><?php echo esc_html($row->locator); ?></td>
-                        <?php if (!$is_admin) : ?>
+                        <?php if ($is_admin) : ?>
+                            <td><?php echo $row->activ ? 'Ja' : 'Nein'; ?></td>
+                        <?php else : ?>
                             <td><?php echo esc_html($row->email); ?></td>
                         <?php endif; ?>
                     </tr>
@@ -366,9 +385,9 @@ class CallbookPlugin {
         global $wpdb;
         $current_page = isset($_GET['callbook_page']) ? max(1, intval($_GET['callbook_page'])) : 1;
         $offset = ($current_page - 1) * $this->items_per_page;
-        $total_items = $wpdb->get_var("SELECT COUNT(*) FROM $this->table_name");
+        $total_items = $wpdb->get_var("SELECT COUNT(*) FROM $this->table_name WHERE activ = 1");
         $total_pages = ceil($total_items / $this->items_per_page);
-        $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $this->table_name LIMIT %d OFFSET %d", $this->items_per_page, $offset));
+        $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $this->table_name WHERE activ = 1 LIMIT %d OFFSET %d", $this->items_per_page, $offset));
 
         // Bereich für Pagination-Links (±2 Seiten)
         $start_page = max(1, $current_page - 2);
