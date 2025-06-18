@@ -1,4 +1,18 @@
 jQuery(document).ready(function($) {
+    // Funktion zum Ausblenden von Nachrichten nach 5 Sekunden
+    function hideMessages() {
+        if ($('.alert').length) {
+            setTimeout(function() {
+                $('.alert').fadeOut('slow', function() {
+                    $(this).remove();
+                });
+            }, 5000);
+        }
+    }
+
+    // Nachrichten beim Laden der Seite ausblenden
+    hideMessages();
+
     // Klick auf Zeile in der Admin-Tabelle
     $(document).on('click', '.edit-row', function() {
         var id = $(this).data('id');
@@ -45,6 +59,8 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 $('#admin-callbook-table').html(response);
+                // Nachrichten nach AJAX-Update ausblenden
+                hideMessages();
             }
         });
     });
