@@ -446,7 +446,7 @@ class CallbookPlugin {
             'bundesland' => sanitize_text_field($_POST['bundesland']),
             'land' => sanitize_text_field($_POST['land']),
             'bemerkung' => sanitize_textarea_field($_POST['bemerkung']),
-            'regdate' => current_time('Y-m-d H:i:s'),
+            'regdate' => current_time('Y-m-d H:i'),
             'lastupdate' => current_time('mysql'),
             'activ' => 0
         ];
