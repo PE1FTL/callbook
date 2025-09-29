@@ -1,7 +1,7 @@
 {
-  "version": "0.14.0",
-  "package": "https://github.com/pe1ftl/callbook/releases/download/v0.14.0/callbook.zip",
-  "changelog": "Version 0.14.0 released on 2025-09-22",
+  "version": "0.15.0",
+  "package": "https://github.com/pe1ftl/callbook/releases/download/v0.15.0/callbook.zip",
+  "changelog": "Version 0.15.0 released on 2025-09-29",
   "requires": "5.0",
   "tested": "6.5"
 }
